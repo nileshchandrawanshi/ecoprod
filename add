@@ -7,3 +7,4 @@ if __name__ == "__main__":
 
 RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host=files.pythonhosted.org -r requirements.txt
 
+curl -XPOST "http://localhost:9000/2015-03-31/functions/function/invocations" -d '{}'
