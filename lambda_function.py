@@ -76,67 +76,73 @@ def add_remote_link(issue_key, link_title, link_url):
         print(f"Failed to add remote link to {issue_key}: {response.status_code} - {response.text}")
 
 def process_rss_feed():
-    # Main logic to process the RSS feed
-    rss_url = "https://developer.atlassian.com/platform/forge/changelog/rss/a/d5fbfe34-0fd2-42ea-80a9-931f640a2ed9/"
-    response = requests.get(rss_url, verify=False)
+    # List of RSS URLs to process
+    rss_urls = [
+        "https://developer.atlassian.com/platform/forge/changelog/rss/a/d5fbfe34-0fd2-42ea-80a9-931f640a2ed9/",
+        "https://example.com/rss1",
+        "https://example.com/rss2",
+        "https://example.com/rss3",
+        "https://example.com/rss4",
+        "https://example.com/rss5"
+    ]
     
-    if response.status_code != 200:
-        print(f"Failed to fetch the feed. Status code: {response.status_code}")
-        return "Failed to fetch the RSS feed."
+    for rss_url in rss_urls:
+        print(f"Processing RSS feed from: {rss_url}")
+        
+        response = requests.get(rss_url, verify=False)
+        
+        if response.status_code != 200:
+            print(f"Failed to fetch the feed from {rss_url}. Status code: {response.status_code}")
+            continue  # Skip to the next URL if the current one fails
 
-    soup = BeautifulSoup(response.content, "xml")
-    data = []
-    items = soup.find_all("item")
-    for item in items:
-        title = item.find("title").text if item.find("title") else "N/A"
-        link = item.find("link").text if item.find("link") else "N/A"
-        pub_date = item.find("pubDate").text if item.find("pubDate") else "N/A"
-        description = item.find("description").text if item.find("description") else "N/A"
-        category = item.find("category").text if item.find("category") else "General"
+        soup = BeautifulSoup(response.content, "xml")
+        data = []
+        items = soup.find_all("item")
+        for item in items:
+            title = item.find("title").text if item.find("title") else "N/A"
+            link = item.find("link").text if item.find("link") else "N/A"
+            pub_date = item.find("pubDate").text if item.find("pubDate") else "N/A"
+            description = item.find("description").text if item.find("description") else "N/A"
+            category = item.find("category").text if item.find("category") else "General"
 
-        data.append({
-            "Title": title,
-            "Link": link,
-            "Published Date": pub_date,
-            "Summary": description,
-            "Category": category
-        })
+            data.append({
+                "Title": title,
+                "Link": link,
+                "Published Date": pub_date,
+                "Summary": description,
+                "Category": category
+            })
 
-    df = pd.DataFrame(data)
-    df['Published Date'] = pd.to_datetime(df['Published Date'], errors='coerce').dt.tz_localize('UTC')
-    #df['Published Date'] = pd.to_datetime(df['Published Date'], errors='coerce', utc=True)
+        df = pd.DataFrame(data)
+        df['Published Date'] = pd.to_datetime(df['Published Date'], errors='coerce').dt.tz_localize('UTC')
 
-    # Calculate the time 24 hours ago
-    last_24_hours = datetime.now(timezone.utc) - timedelta(hours=24)
-    #last_24_hours = pd.Timestamp.now(tz="UTC") - pd.Timedelta(hours=24)
+        last_24_hours = datetime.now(timezone.utc) - timedelta(hours=24)
+        df_last_24_hours = df[df['Published Date'] >= last_24_hours]
+        print("All Published Dates:")
+        print(df["Published Date"])
 
-    #df_last_24_hours = df[df['Published Date'] >= last_24_hours]
-    df_last_24_hours = df[df['Published Date'] >= last_24_hours]
-    print("All Published Dates:")
-    print(df
-    ["Published Date"])
-
-    print("Filtered Data (Last 24 Hours):")
-    print(df_last_24_hours)
-    if not df_last_24_hours.empty:
-        print("Creating Jira tickets for RSS feed data published in the last 24 hours...")
-        for _, row in df_last_24_hours.iterrows():
-            formatted_summary = convert_to_wiki_markup(row["Summary"])
-            issue_key = create_jira_ticket(
-                title=row["Title"],
-                summary=formatted_summary,
-                component=row["Category"]
-            )
-            if issue_key:
-                add_remote_link(
-                    issue_key=issue_key,
-                    link_title="More Details",
-                    link_url=row["Link"]
+        print("Filtered Data (Last 24 Hours):")
+        print(df_last_24_hours)
+        
+        if not df_last_24_hours.empty:
+            print(f"Creating Jira tickets for RSS feed data from {rss_url} published in the last 24 hours...")
+            for _, row in df_last_24_hours.iterrows():
+                formatted_summary = convert_to_wiki_markup(row["Summary"])
+                issue_key = create_jira_ticket(
+                    title=row["Title"],
+                    summary=formatted_summary,
+                    component=row["Category"]
                 )
-        return "RSS feed processed, Jira tickets created."
-    else:
-        print("No RSS feed data published in the last 24 hours.")
-        return "No new RSS feed data."
+                if issue_key:
+                    add_remote_link(
+                        issue_key=issue_key,
+                        link_title="More Details",
+                        link_url=row["Link"]
+                    )
+        else:
+            print(f"No new RSS feed data from {rss_url} published in the last 24 hours.")
+
+    return "RSS feeds processed, Jira tickets created."
 
 # Lambda handler function
 def lambda_handler(event, context):
