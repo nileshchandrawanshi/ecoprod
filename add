@@ -3,3 +3,7 @@ if __name__ == "__main__":
     context = {}  # You can leave this empty for local execution
     result = lambda_handler(event, context)
     print(result)
+
+
+RUN pip install --trusted-host pypi.org --trusted-host pypi.python.org --trusted-host=files.pythonhosted.org -r requirements.txt
+
