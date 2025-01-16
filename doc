@@ -99,8 +99,10 @@ This document provides a step-by-step guide to set up an AWS Lambda function for
 
 1. In the Lambda console, go to **Configuration** > **Environment variables**.
 2. Add environment variables as needed:
-   - `API_TOKEN`: `<your_api_token>`
-   - `RSS_FEED_URL`: `<rss_feed_url>`
+   - `JIRA_API_TOKEN`: `<your_api_token>`
+   - `JIRA_URL`: `<jira_insance_url>`
+   - `JIRA_PROJECT_KEY`: `<jira_project_key>`
+   - `JIRA_EMAIL`: `<jira_user_email>`
 
 ---
 
