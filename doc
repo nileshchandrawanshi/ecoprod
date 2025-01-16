@@ -1,0 +1,138 @@
+# Setting up AWS Lambda for Changelog Automation Using Docker
+
+This document provides a step-by-step guide to set up an AWS Lambda function for automating changelog updates using a Docker container. The Lambda function will be triggered every 24 hours.
+
+## Prerequisites
+
+- AWS CLI configured with necessary permissions
+- Docker installed on your machine
+- Python 3.11 installed
+- Access to AWS Elastic Container Registry (ECR)
+- IAM role with Lambda execution permissions
+
+---
+
+## Step 1: Create Project Directory and Files
+
+1. Create a project directory:
+   ```bash
+   mkdir changelog-lambda
+   cd changelog-lambda
+   ```
+
+2. Create `lambda_function.py` with your Lambda function logic.
+
+3. Create a `requirements.txt` file with all required Python dependencies:
+   ```bash
+   numpy
+   requests
+   beautifulsoup4
+   lxml
+   ```
+
+4. Create a `Dockerfile`:
+   ```Dockerfile
+   # Use the official AWS Lambda Python 3.11 base image
+   FROM public.ecr.aws/lambda/python:3.11
+
+   # Set the working directory
+   WORKDIR /var/task
+
+   # Copy Python script and requirements
+   COPY lambda_function.py ./
+   COPY requirements.txt ./
+
+   # Install dependencies
+   RUN pip install --upgrade pip
+   RUN pip install -r requirements.txt
+
+   # Set the Lambda handler
+   CMD ["lambda_function.lambda_handler"]
+   ```
+
+---
+
+## Step 2: Build and Push Docker Image to ECR
+
+1. **Authenticate Docker with ECR:**
+   ```bash
+   aws ecr get-login-password --region <region> | docker login --username AWS --password-stdin <account-id>.dkr.ecr.<region>.amazonaws.com
+   ```
+
+2. **Create ECR Repository:**
+   ```bash
+   aws ecr create-repository --repository-name changelog-lambda
+   ```
+
+3. **Build Docker Image:**
+   ```bash
+   docker build -t changelog-lambda .
+   ```
+
+4. **Tag Docker Image:**
+   ```bash
+   docker tag changelog-lambda:latest <account-id>.dkr.ecr.<region>.amazonaws.com/changelog-lambda:latest
+   ```
+
+5. **Push Docker Image to ECR:**
+   ```bash
+   docker push <account-id>.dkr.ecr.<region>.amazonaws.com/changelog-lambda:latest
+   ```
+
+---
+
+## Step 3: Create Lambda Function Using Container Image
+
+1. **Open AWS Lambda Console** and click **Create Function**.
+2. Select **Container Image** as the deployment package.
+3. Enter function name (e.g., `ChangelogLambda`).
+4. Enter the image URI from ECR:
+   ```
+   <account-id>.dkr.ecr.<region>.amazonaws.com/changelog-lambda:latest
+   ```
+5. Choose an existing **IAM role** with Lambda execution permissions or create a new one.
+6. Click **Create Function**.
+
+---
+
+## Step 4: Configure Environment Variables
+
+1. In the Lambda console, go to **Configuration** > **Environment variables**.
+2. Add environment variables as needed:
+   - `API_TOKEN`: `<your_api_token>`
+   - `RSS_FEED_URL`: `<rss_feed_url>`
+
+---
+
+## Step 5: Set Up CloudWatch Trigger for Scheduled Execution
+
+1. Go to **CloudWatch** > **Rules** > **Create rule**.
+2. Select **Event Source**:
+   - **Event Source:** **EventBridge (CloudWatch Events)**
+   - **Schedule expression:** `rate(24 hours)`
+3. Select **Lambda function** as the target and choose your Lambda function.
+4. Click **Create Rule**.
+
+---
+
+## Step 6: Test Lambda Function
+
+1. Go to the Lambda console.
+2. Click **Test** > **Create Test Event**.
+3. Use the default template or provide custom input.
+4. Click **Test** to verify successful execution.
+
+---
+
+## Troubleshooting
+
+- **Dependency Errors:** Ensure all dependencies are listed in `requirements.txt` and correctly installed in the Docker image.
+- **Docker Image Push Errors:** Verify Docker login to ECR and repository URI.
+- **Execution Errors:** Check CloudWatch logs for detailed error messages.
+
+---
+
+## Conclusion
+
+You have successfully deployed an AWS Lambda function using a Docker container to automate changelog updates. The function is scheduled to run every 24 hours via CloudWatch Events.
+
